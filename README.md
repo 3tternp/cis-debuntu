@@ -10,6 +10,7 @@ cd cis-ubuntu/
 chmod +x cisubuntucheck.sh
 ./cisubuntucheck.sh
 ```
-![image](https://github.com/user-attachments/assets/4f24871a-6e1c-4603-99bf-7e8a785d0ced)
+![image](https://github.com/user-attachments/assets/9ad5be9c-64f5-4599-95e1-84db91573972)
+
 
 
