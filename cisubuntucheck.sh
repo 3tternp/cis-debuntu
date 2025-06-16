@@ -227,8 +227,15 @@ if [[ "$(id -u)" -ne 0 ]]; then
     exit 1
 fi
 
+# Display banner
+log_message "=================================================="
+log_message "      CIS Ubuntu Benchmark Check"
+log_message "      Version 1.0"
+log_message "      Developed by Astra-X"
+log_message "=================================================="
+
 # Header
-log_message "CIS Ubuntu Benchmark Check"
+log_message ""
 log_message "Hostname: $(hostname)"
 log_message "Time: $(date)"
 log_message "================================================================================="
