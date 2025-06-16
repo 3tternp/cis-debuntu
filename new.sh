@@ -6,10 +6,10 @@ declare -A counters=(
     ["score_server2_total"]=0 ["score_server2_ok"]=0
     ["score_workstation1_total"]=0 ["score_workstation1_ok"]=0
     ["score_workstation2_total"]=0 ["score_workstation2_ok"]=0
-    ["noscore_server1_total"]=0 ["noscore_server1_ok"]=0
-    ["noscore_server2_total"]=0 ["noscore_server2_ok"]=0
-    ["noscore_workstation1_total"]=0 ["noscore_workstation1_ok"]=0
-    ["noscore_workstation2_total"]=0 ["noscore_workstation2_ok"]=0
+    ["notscored_server1_total"]=0 ["notscored_server1_ok"]=0
+    ["notscored_server2_total"]=0 ["notscored_server2_ok"]=0
+    ["notscored_workstation1_total"]=0 ["notscored_workstation1_ok"]=0
+    ["notscored_workstation2_total"]=0 ["notscored_workstation2_ok"]=0
 )
 
 # Check if terminal supports colors
@@ -24,9 +24,9 @@ fi
 
 # Logging setup
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-LOG_FILE="/var/log/cis_benchmark_${TIMESTAMP}.log"
-HTML_OUTPUT="/var/log/cis_benchmark_${TIMESTAMP}.html"
-touch "$LOG_FILE" 2>/dev/null || { echo "Cannot write to log file. Ensure root permissions."; exit 1; }
+LOG_FILE="./cis_benchmark_log_${TIMESTAMP}.log"
+HTML_OUTPUT="./cis_benchmark_${TIMESTAMP}.html"
+touch "$LOG_FILE" 2>/dev/null || { echo "Cannot write to current directory. Ensure write permissions."; exit 1; }
 declare -a HTML_RESULTS
 
 # Function to log messages
@@ -46,15 +46,15 @@ generate_html_report() {
     local hostname="$1"
     local timestamp="$2"
     local total_scored=$((counters[score_server1_total] + counters[score_server2_total] - counters[score_server1_total]))
-    local total_noscored=$((counters[noscore_server1_total] + counters[noscore_server2_total] - counters[noscore_server1_total]))
+    local total_notscored=$((counters[notscored_server1_total] + counters[notscored_server2_total] - counters[notscored_server1_total]))
     local passed_scored=$((counters[score_server1_ok] + counters[score_server2_ok] - counters[score_server1_ok]))
-    local passed_noscored=$((counters[noscore_server1_ok] + counters[noscore_server2_ok] - counters[noscore_server1_ok]))
+    local passed_notscored=$((counters[notscored_server1_ok] + counters[notscored_server2_ok] - counters[notscored_server1_ok]))
     local score_server1_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${counters[score_server1_ok]}*100/${counters[score_server1_total]}}")
     local score_server2_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${counters[score_server2_ok]}*100/${counters[score_server2_total]}}")
     local score_workstation1_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${counters[score_workstation1_ok]}*100/${counters[score_workstation1_total]}}")
     local score_workstation2_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${counters[score_workstation2_ok]}*100/${counters[score_workstation2_total]}}")
     local overall_scored_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${passed_scored}*100/${total_scored}}")
-    local overall_noscored_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${passed_noscored}*100/${total_noscored}}")
+    local overall_notscored_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${passed_notscored}*100/${total_notscored}}")
 
     cat << EOF > "$HTML_OUTPUT"
 <!DOCTYPE html>
@@ -82,7 +82,7 @@ generate_html_report() {
         <p><strong>Time:</strong> ${timestamp}</p>
 
         <h2 class="text-xl font-semibold mt-6 mb-2">Executive Summary</h2>
-        <p>The CIS Ubuntu Benchmark assessment evaluated ${total_scored} scored and ${total_noscored} not scored tests across Server and Workstation profiles. The overall pass rate for scored tests is ${overall_scored_pass_rate}%, indicating partial compliance with critical security controls. Not scored tests achieved a pass rate of ${overall_noscored_pass_rate}%, reflecting advisory recommendations.</p>
+        <p>The CIS Ubuntu Benchmark assessment evaluated ${total_scored} scored and ${total_notscored} not scored tests across Server and Workstation profiles. The overall pass rate for scored tests is ${overall_scored_pass_rate}%, indicating partial compliance with critical security controls. Not scored tests achieved a pass rate of ${overall_notscored_pass_rate}%, reflecting advisory recommendations.</p>
         <ul class="list-disc pl-5 mb-4">
             <li><strong>Server1 (Scored):</strong> ${counters[score_server1_ok]}/${counters[score_server1_total]} (${score_server1_pass_rate}%) passed, indicating moderate compliance.</li>
             <li><strong>Server2 (Scored):</strong> ${counters[score_server2_ok]}/${counters[score_server2_total]} (${score_server2_pass_rate}%) passed, highlighting significant non-compliance.</li>
@@ -106,13 +106,13 @@ generate_html_report() {
             </div>
             <div>
                 <h3 class="text-lg font-medium">Not Scored (Server)</h3>
-                <p>Server 1: ${counters[noscore_server1_ok]} / ${counters[noscore_server1_total]}</p>
-                <p>Server 2: ${counters[noscore_server2_ok]} / ${counters[noscore_server2_total]}</p>
+                <p>Server 1: ${counters[notscored_server1_ok]} / ${counters[notscored_server1_total]}</p>
+                <p>Server 2: ${counters[notscored_server2_ok]} / ${counters[notscored_server2_total]}</p>
             </div>
             <div>
                 <h3 class="text-lg font-medium">Not Scored (Workstation)</h3>
-                <p>Workstation 1: ${counters[noscore_workstation1_ok]} / ${counters[noscore_workstation1_total]}</p>
-                <p>Workstation 2: ${counters[noscore_workstation2_ok]} / ${counters[noscore_workstation2_total]}</p>
+                <p>Workstation 1: ${counters[notscored_workstation1_ok]} / ${counters[notscored_workstation1_total]}</p>
+                <p>Workstation 2: ${counters[notscored_workstation2_ok]} / ${counters[notscored_workstation2_total]}</p>
             </div>
         </div>
 
@@ -144,14 +144,14 @@ generate_html_report() {
                 datasets: [
                     {
                         label: 'Passed',
-                        data: [${counters[score_server1_ok]}, ${counters[score_server2_ok]}, ${counters[score_workstation1_ok]}, ${counters[score_workstation2_ok]}, ${counters[noscore_server1_ok]}, ${counters[noscore_server2_ok]}, ${counters[noscore_workstation1_ok]}, ${counters[noscore_workstation2_ok]}],
+                        data: [${counters[score_server1_ok]}, ${counters[score_server2_ok]}, ${counters[score_workstation1_ok]}, ${counters[score_workstation2_ok]}, ${counters[notscored_server1_ok]}, ${counters[notscored_server2_ok]}, ${counters[notscored_workstation1_ok]}, ${counters[notscored_workstation2_ok]}],
                         backgroundColor: 'rgba(75, 192, 192, 0.6)',
                         borderColor: 'rgba(75, 192, 192, 1)',
                         borderWidth: 1
                     },
                     {
                         label: 'Failed',
-                        data: [${counters[score_server1_total]}-${counters[score_server1_ok]}, ${counters[score_server2_total]}-${counters[score_server2_ok]}, ${counters[score_workstation1_total]}-${counters[score_workstation1_ok]}, ${counters[score_workstation2_total]}-${counters[score_workstation2_ok]}, ${counters[noscore_server1_total]}-${counters[noscore_server1_ok]}, ${counters[noscore_server2_total]}-${counters[noscore_server2_ok]}, ${counters[noscore_workstation1_total]}-${counters[noscore_workstation1_ok]}, ${counters[noscore_workstation2_total]}-${counters[noscore_workstation2_ok]}],
+                        data: [${counters[score_server1_total]}-${counters[score_server1_ok]}, ${counters[score_server2_total]}-${counters[score_server2_ok]}, ${counters[score_workstation1_total]}-${counters[score_workstation1_ok]}, ${counters[score_workstation2_total]}-${counters[score_workstation2_ok]}, ${counters[notscored_server1_total]}-${counters[notscored_server1_ok]}, ${counters[notscored_server2_total]}-${counters[notscored_server2_ok]}, ${counters[notscored_workstation1_total]}-${counters[notscored_workstation1_ok]}, ${counters[notscored_workstation2_total]}-${counters[notscored_workstation2_ok]}],
                         backgroundColor: 'rgba(255, 99, 132, 0.6)',
                         borderColor: 'rgba(255, 99, 132, 1)',
                         borderWidth: 1
@@ -190,10 +190,10 @@ test_wrapper() {
         [[ "$workstation" == "Workstation1" ]] && ((counters[score_workstation1_total]++))
         [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[score_workstation2_total]++))
     else
-        [[ "$server" == "Server1" ]] && ((counters[noscore_server1_total]++))
-        [[ "$server" == "Server1" || "$server" == "Server2" ]] && ((counters[noscore_server2_total]++))
-        [[ "$workstation" == "Workstation1" ]] && ((counters[noscore_workstation1_total]++))
-        [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[noscore_workstation2_total]++))
+        [[ "$server" == "Server1" ]] && ((counters[notscored_server1_total]++))
+        [[ "$server" == "Server1" || "$server" == "Server2" ]] && ((counters[notscored_server2_total]++))
+        [[ "$workstation" == "Workstation1" ]] && ((counters[notscored_workstation1_total]++))
+        [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[notscored_workstation2_total]++))
     fi
 
     if [[ -f "./test/${ref}.sh" ]]; then
@@ -209,10 +209,10 @@ test_wrapper() {
                 [[ "$workstation" == "Workstation1" ]] && ((counters[score_workstation1_ok]++))
                 [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[score_workstation2_ok]++))
             else
-                [[ "$server" == "Server1" ]] && ((counters[noscore_server1_ok]++))
-                [[ "$server" == "Server1" || "$server" == "Server2" ]] && ((counters[noscore_server2_ok]++))
-                [[ "$workstation" == "Workstation1" ]] && ((counters[noscore_workstation1_ok]++))
-                [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[noscore_workstation2_ok]++))
+                [[ "$server" == "Server1" ]] && ((counters[notscored_server1_ok]++))
+                [[ "$server" == "Server1" || "$server" == "Server2" ]] && ((counters[notscored_server2_ok]++))
+                [[ "$workstation" == "Workstation1" ]] && ((counters[notscored_workstation1_ok]++))
+                [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[notscored_workstation2_ok]++))
             fi
         fi
     else
@@ -479,12 +479,12 @@ log_message "Workstation 1 = ${counters[score_workstation1_ok]} / ${counters[sco
 log_message "Workstation 2 = ${counters[score_workstation2_ok]} / ${counters[score_workstation2_total]}"
 log_message ""
 log_message "Not Scored (Server)"
-log_message "Server 1 = ${counters[noscore_server1_ok]} / ${counters[noscore_server1_total]}"
-log_message "Server 2 = ${counters[noscore_server2_ok]} / ${counters[noscore_server2_total]}"
+log_message "Server 1 = ${counters[notscored_server1_ok]} / ${counters[notscored_server1_total]}"
+log_message "Server 2 = ${counters[notscored_server2_ok]} / ${counters[notscored_server2_total]}"
 log_message ""
 log_message "Not Scored (Workstation)"
-log_message "Workstation 1 = ${counters[noscore_workstation1_ok]} / ${counters[noscore_workstation1_total]}"
-log_message "Workstation 2 = ${counters[noscore_workstation2_ok]} / ${counters[noscore_workstation2_total]}"
+log_message "Workstation 1 = ${counters[notscored_workstation1_ok]} / ${counters[notscored_workstation1_total]}"
+log_message "Workstation 2 = ${counters[notscored_workstation2_ok]} / ${counters[notscored_workstation2_total]}"
 
 # Generate HTML report
 generate_html_report "$(hostname)" "$(date)"
