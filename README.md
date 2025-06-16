@@ -14,3 +14,7 @@ chmod +x cisubuntucheck.sh
 
 
 
+# output
+![image](https://github.com/user-attachments/assets/e006eec0-df06-49db-9eb7-667a2d570709)
+![image](https://github.com/user-attachments/assets/7161b3dd-cf30-402e-97b2-e955753b72c4)
+
