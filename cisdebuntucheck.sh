@@ -92,27 +92,345 @@ get_fix_type() {
     fi
 }
 
-# Function to determine remediation steps
+# Function to determine remediation steps based on CIS Ubuntu 20.04 Benchmark
 get_remediation() {
     local ref="$1" status="$2"
     if [[ "$status" == "PASS" ]]; then
         echo "No remediation required"
     else
         case "$ref" in
-            1.1.1.*)
-                echo "Run: modprobe -r <filesystem> && echo 'install <filesystem> /bin/true' >> /etc/modprobe.d/CIS.conf"
+            1.1.1.1)
+                echo "Run: echo 'install cramfs /bin/true' >> /etc/modprobe.d/cramfs.conf && modprobe -r cramfs"
                 ;;
-            1.1.[2-13]*)
-                echo "Create separate partition in /etc/fstab or set mount options (nodev, nosuid, noexec)"
+            1.1.1.2)
+                echo "Run: echo 'install freevxfs /bin/true' >> /etc/modprobe.d/freevxfs.conf && modprobe -r freevxfs"
                 ;;
-            4.*)
-                echo "Edit /etc/audit/auditd.conf or add audit rules to /etc/audit/rules.d/"
+            1.1.1.3)
+                echo "Run: echo 'install jffs2 /bin/true' >> /etc/modprobe.d/jffs2.conf && modprobe -r jffs2"
                 ;;
-            5.*)
-                echo "Edit /etc/ssh/sshd_config or /etc/login.defs and restart relevant services"
+            1.1.1.4)
+                echo "Run: echo 'install hfs /bin/true' >> /etc/modprobe.d/hfs.conf && modprobe -r hfs"
+                ;;
+            1.1.1.5)
+                echo "Run: echo 'install hfsplus /bin/true' >> /etc/modprobe.d/hfsplus.conf && modprobe -r hfsplus"
+                ;;
+            1.1.1.6)
+                echo "Run: echo 'install squashfs /bin/true' >> /etc/modprobe.d/squashfs.conf && modprobe -r squashfs"
+                ;;
+            1.1.1.7)
+                echo "Run: echo 'install udf /bin/true' >> /etc/modprobe.d/udf.conf && modprobe -r udf"
+                ;;
+            1.1.1.8)
+                echo "Run: echo 'install vfat /bin/true' >> /etc/modprobe.d/vfat.conf && modprobe -r vfat"
+                ;;
+            1.1.2)
+                echo "Edit /etc/fstab to create a separate /tmp partition, e.g., 'tmpfs /tmp tmpfs defaults,rw,nosuid,nodev,noexec 0 0'"
+                ;;
+            1.1.3|1.1.4|1.1.5|1.1.8|1.1.9|1.1.10|1.1.14|1.1.16|1.1.17)
+                echo "Edit /etc/fstab to add nodev, nosuid, or noexec options for the relevant partition (e.g., /tmp, /var/tmp, /home, /dev/shm)"
+                ;;
+            1.1.6|1.1.7|1.1.11|1.1.12|1.1.13)
+                echo "Create a separate partition for /var, /var/tmp, /var/log, /var/log/audit, or /home during system setup or resize existing partitions"
+                ;;
+            1.1.15)
+                echo "Edit /etc/fstab to add nodev option for /dev/shm, e.g., 'tmpfs /dev/shm tmpfs defaults,nodev,nosuid,noexec 0 0'"
+                ;;
+            1.1.18|1.1.19|1.1.20)
+                echo "Edit /etc/fstab to add nodev, nosuid, or noexec options for removable media partitions"
+                ;;
+            1.1.21)
+                echo "Run: find / -type d -perm -0002 -exec chmod +t {} \;"
+                ;;
+            1.1.22)
+                echo "Run: systemctl disable autofs && apt remove autofs"
+                ;;
+            1.2.1)
+                echo "Configure repositories in /etc/apt/sources.list or /etc/apt/sources.list.d/ based on your organization's policy"
+                ;;
+            1.2.2)
+                echo "Run: apt-key adv --keyserver keyserver.ubuntu.com --recv-keys <KEY_ID>"
+                ;;
+            1.2.3)
+                echo "Edit /etc/apt/apt.conf.d/00local to include 'APT::Get::AllowUnauthenticated \"false\";'"
+                ;;
+            1.3.1)
+                echo "Run: apt install aide aide-common && aideinit"
+                ;;
+            1.3.2)
+                echo "Create a cron job, e.g., '0 5 * * * /usr/bin/aide.wrapper --check' in /etc/crontab"
+                ;;
+            1.4.1)
+                echo "Run: chown root:root /boot/grub/grub.cfg && chmod og-rwx /boot/grub/grub.cfg"
+                ;;
+            1.4.2)
+                echo "Edit /etc/grub.d/40_custom to add 'set superusers=\"root\"' and 'password_pbkdf2 root <hashed-password>', then run: update-grub"
+                ;;
+            1.4.3)
+                echo "Run: systemctl edit rescue.service && systemctl edit emergency.service to set ExecStart with sulogin"
+                ;;
+            1.5.1)
+                echo "Edit /etc/security/limits.conf to add '* hard core 0' and run: sysctl -w fs.suid_dumpable=0"
+                ;;
+            1.5.2)
+                echo "Verify CPU NX support in /proc/cpuinfo or BIOS settings; no specific command for enabling"
+                ;;
+            1.5.3)
+                echo "Run: sysctl -w kernel.randomize_va_space=2 && echo 'kernel.randomize_va_space = 2' >> /etc/sysctl.conf"
+                ;;
+            1.5.4)
+                echo "Run: apt remove prelink"
+                ;;
+            1.6.1.1)
+                echo "Edit /etc/default/grub to remove 'selinux=0' or 'enforcing=0', then run: update-grub"
+                ;;
+            1.6.1.2)
+                echo "Edit /etc/selinux/config to set SELINUX=enforcing"
+                ;;
+            1.6.1.3)
+                echo "Edit /etc/selinux/config to set SELINUXTYPE=targeted or strict"
+                ;;
+            1.6.1.4)
+                echo "Run: apt remove setroubleshoot"
+                ;;
+            1.6.1.5)
+                echo "Run: apt remove mcstrans"
+                ;;
+            1.6.1.6)
+                echo "Run: ps -eZ | grep unconfined_service_t and terminate or relabel unconfined processes"
+                ;;
+            1.6.2)
+                echo "Run: apt install libselinux1"
+                ;;
+            1.7.1.1)
+                echo "Edit /etc/motd to include appropriate legal notice"
+                ;;
+            1.7.1.2|1.7.1.3)
+                echo "Edit /etc/issue or /etc/issue.net to include appropriate legal notice"
+                ;;
+            1.7.1.4)
+                echo "Run: chown root:root /etc/motd && chmod 644 /etc/motd"
+                ;;
+            1.7.1.5)
+                echo "Run: chown root:root /etc/issue && chmod 644 /etc/issue"
+                ;;
+            1.7.1.6)
+                echo "Run: chown root:root /etc/issue.net && chmod 644 /etc/issue.net"
+                ;;
+            1.7.2)
+                echo "Edit /etc/gdm3/greeter.dconf-defaults to set banner-message-enable=true and banner-message-text"
+                ;;
+            1.8)
+                echo "Run: apt update && apt upgrade"
+                ;;
+            2.1.*|2.2.[2-21]|2.3.*)
+                echo "Run: systemctl disable <service_name> && apt remove <package_name> (e.g., xinetd, avahi-daemon, cups)"
+                ;;
+            2.2.1.1)
+                echo "Run: apt install chrony || apt install ntp"
+                ;;
+            2.2.1.2)
+                echo "Edit /etc/ntp.conf to configure NTP servers and restrict access"
+                ;;
+            2.2.1.3)
+                echo "Edit /etc/chrony/chrony.conf to configure time servers"
+                ;;
+            3.1.1|3.1.2|3.2.*)
+                echo "Edit /etc/sysctl.conf to set net.ipv4.ip_forward=0, net.ipv4.conf.all.send_redirects=0, etc."
+                ;;
+            3.3.1|3.3.2|3.3.3)
+                echo "Edit /etc/sysctl.conf to set net.ipv6.conf.all.accept_ra=0, net.ipv6.conf.all.disable_ipv6=1, etc."
+                ;;
+            3.4.1)
+                echo "Run: apt install tcpd"
+                ;;
+            3.4.2|3.4.3)
+                echo "Edit /etc/hosts.allow or /etc/hosts.deny to configure access rules"
+                ;;
+            3.4.4|3.4.5)
+                echo "Run: chown root:root /etc/hosts.allow && chmod 644 /etc/hosts.allow (or /etc/hosts.deny)"
+                ;;
+            3.5.*)
+                echo "Run: echo 'install <protocol> /bin/true' >> /etc/modprobe.d/<protocol>.conf && modprobe -r <protocol>"
+                ;;
+            3.6.1)
+                echo "Run: apt install iptables"
+                ;;
+            3.6.2|3.6.3|3.6.5)
+                echo "Configure iptables rules, e.g., iptables -P INPUT DROP, iptables -A INPUT -i lo -j ACCEPT"
+                ;;
+            3.6.4)
+                echo "Configure iptables for outbound/established connections, e.g., iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT"
+                ;;
+            3.7)
+                echo "Run: nmcli radio wifi off || iwconfig wlan0 power off"
+                ;;
+            4.1.1.1)
+                echo "Edit /etc/audit/auditd.conf to set max_log_file and max_log_file_action"
+                ;;
+            4.1.1.2)
+                echo "Edit /etc/audit/auditd.conf to set space_left_action, action_mail_acct, admin_space_left_action"
+                ;;
+            4.1.1.3)
+                echo "Edit /etc/audit/auditd.conf to set max_log_file_action=keep_logs"
+                ;;
+            4.1.2)
+                echo "Run: systemctl enable auditd"
+                ;;
+            4.1.3)
+                echo "Edit /etc/default/grub to add audit=1, then run: update-grub"
+                ;;
+            4.1.4|4.1.5|4.1.6|4.1.7|4.1.8|4.1.9|4.1.10|4.1.11|4.1.12|4.1.13|4.1.14|4.1.15|4.1.16|4.1.17)
+                echo "Add audit rules to /etc/audit/rules.d/audit.rules, e.g., -a always,exit -F arch=b64 -S <syscall> -k <key>"
+                ;;
+            4.1.18)
+                echo "Add -e 2 to /etc/audit/rules.d/audit.rules"
+                ;;
+            4.2.1.1)
+                echo "Run: systemctl enable rsyslog"
+                ;;
+            4.2.1.2|4.2.2.2)
+                echo "Edit /etc/rsyslog.conf or /etc/syslog-ng/syslog-ng.conf to configure logging"
+                ;;
+            4.2.1.3)
+                echo "Edit /etc/rsyslog.conf to set FileCreateMode 0640"
+                ;;
+            4.2.1.4|4.2.2.4)
+                echo "Edit /etc/rsyslog.conf or /etc/syslog-ng/syslog-ng.conf to configure remote logging"
+                ;;
+            4.2.1.5|4.2.2.5)
+                echo "Edit /etc/rsyslog.conf or /etc/syslog-ng/syslog-ng.conf to restrict remote messages"
+                ;;
+            4.2.2.1)
+                echo "Run: systemctl enable syslog-ng"
+                ;;
+            4.2.2.3)
+                echo "Edit /etc/syslog-ng/syslog-ng.conf to set perm(0640)"
+                ;;
+            4.2.3)
+                echo "Run: apt install rsyslog || apt install syslog-ng"
+                ;;
+            4.2.4)
+                echo "Run: find /var/log -type f -exec chmod g-wx,o-rwx {} +"
+                ;;
+            4.3)
+                echo "Edit /etc/logrotate.conf and /etc/logrotate.d/* to configure rotation policies"
+                ;;
+            5.1.*)
+                echo "Run: chown root:root /etc/crontab /etc/cron.* && chmod og-rwx /etc/crontab /etc/cron.*"
+                ;;
+            5.2.1)
+                echo "Run: chown root:root /etc/ssh/sshd_config && chmod og-rwx /etc/ssh/sshd_config"
+                ;;
+            5.2.2)
+                echo "Edit /etc/ssh/sshd_config to set Protocol 2"
+                ;;
+            5.2.3)
+                echo "Edit /etc/ssh/sshd_config to set LogLevel INFO"
+                ;;
+            5.2.4)
+                echo "Edit /etc/ssh/sshd_config to set X11Forwarding no"
+                ;;
+            5.2.5)
+                echo "Edit /etc/ssh/sshd_config to set MaxAuthTries 4"
+                ;;
+            5.2.6)
+                echo "Edit /etc/ssh/sshd_config to set IgnoreRhosts yes"
+                ;;
+            5.2.7)
+                echo "Edit /etc/ssh/sshd_config to set HostbasedAuthentication no"
+                ;;
+            5.2.8)
+                echo "Edit /etc/ssh/sshd_config to set PermitRootLogin no"
+                ;;
+            5.2.9)
+                echo "Edit /etc/ssh/sshd_config to set PermitEmptyPasswords no"
+                ;;
+            5.2.10)
+                echo "Edit /etc/ssh/sshd_config to set PermitUserEnvironment no"
+                ;;
+            5.2.11)
+                echo "Edit /etc/ssh/sshd_config to set MACs hmac-sha2-512,hmac-sha2-256"
+                ;;
+            5.2.12)
+                echo "Edit /etc/ssh/sshd_config to set ClientAliveInterval 300, ClientAliveCountMax 0"
+                ;;
+            5.2.13)
+                echo "Edit /etc/ssh/sshd_config to set LoginGraceTime 60"
+                ;;
+            5.2.14)
+                echo "Edit /etc/ssh/sshd_config to set AllowUsers, AllowGroups, DenyUsers, or DenyGroups"
+                ;;
+            5.2.15)
+                echo "Edit /etc/ssh/sshd_config to set Banner /etc/issue.net"
+                ;;
+            5.3.1)
+                echo "Edit /etc/security/pwquality.conf to set minlen=14, dcredit=-1, ucredit=-1, ocredit=-1, lcredit=-1"
+                ;;
+            5.3.2)
+                echo "Edit /etc/security/faillock.conf to set deny=5, unlock_time=900"
+                ;;
+            5.3.3)
+                echo "Edit /etc/security/pwquality.conf to set remember=5"
+                ;;
+            5.3.4)
+                echo "Edit /etc/login.defs to set PASS_ALGO sha512"
+                ;;
+            5.4.1.1)
+                echo "Edit /etc/login.defs to set PASS_MAX_DAYS 365"
+                ;;
+            5.4.1.2)
+                echo "Edit /etc/login.defs to set PASS_MIN_DAYS 7"
+                ;;
+            5.4.1.3)
+                echo "Edit /etc/login.defs to set PASS_WARN_AGE 7"
+                ;;
+            5.4.1.4)
+                echo "Run: useradd -D -f 30"
+                ;;
+            5.4.1.5)
+                echo "Run: for user in \$(cut -d: -f1 /etc/passwd); do chage --lastday \$(date -d '-1 year' +%Y-%m-%d) \$user; done"
+                ;;
+            5.4.2)
+                echo "Run: for user in \$(cut -d: -f1 /etc/passwd); do usermod -s /bin/false \$user; done (except valid login accounts)"
+                ;;
+            5.4.3)
+                echo "Run: usermod -g 0 root"
+                ;;
+            5.4.4)
+                echo "Edit /etc/login.defs to set UMASK 027"
+                ;;
+            5.4.5)
+                echo "Edit /etc/profile or /etc/bash.bashrc to set TMOUT=900"
+                ;;
+            5.5)
+                echo "Edit /etc/securetty to restrict root login to specific TTYs"
+                ;;
+            5.6)
+                echo "Edit /etc/pam.d/su to add pam_wheel.so"
+                ;;
+            6.1.1)
+                echo "Run: dpkg -l | grep -v '^ii' to audit package permissions"
+                ;;
+            6.1.[2-9])
+                echo "Run: chown root:root /etc/passwd /etc/shadow /etc/group /etc/gshadow /etc/passwd- /etc/shadow- /etc/group- /etc/gshadow- && chmod 644 /etc/passwd /etc/group && chmod 600 /etc/shadow /etc/gshadow"
+                ;;
+            6.1.10)
+                echo "Run: find / -type f -perm -o+w -exec chmod o-w {} \;"
+                ;;
+            6.1.11)
+                echo "Run: find / -type f -nouser -exec chown root {} \;"
+                ;;
+            6.1.12)
+                echo "Run: find / -type f -nogroup -exec chgrp root {} \;"
+                ;;
+            6.1.13|6.1.14)
+                echo "Run: find / -perm /4000 -o -perm /2000 to list SUID/SGID files and review manually"
+                ;;
+            6.2.*)
+                echo "Edit /etc/passwd, /etc/shadow, or /etc/group to remove invalid entries or duplicates"
                 ;;
             *)
-                echo "Review CIS benchmark documentation for specific remediation steps"
+                echo "Review CIS ${OS^} Benchmark documentation for specific remediation steps for ${ref}"
                 ;;
         esac
     fi
@@ -298,7 +616,7 @@ prompt_user_input
 # Display banner
 log_message "=================================================="
 log_message "      CIS ${OS^} Benchmark Check"
-log_message "      Version 1.0"
+log_message "      Version 2.0"
 log_message "      Developed by Astra-X"
 log_message "=================================================="
 
