@@ -10,7 +10,9 @@ cd cis-ubuntu/
 chmod +x cisdebuntucheck.sh
 ./cisdebuntucheck.sh
 ```
-![image](https://github.com/user-attachments/assets/9ad5be9c-64f5-4599-95e1-84db91573972)
+<img width="936" height="676" alt="image" src="https://github.com/user-attachments/assets/40913ff9-6e6a-4472-b0ae-f99aeac1906e" />
+<img width="881" height="682" alt="image" src="https://github.com/user-attachments/assets/df5c10d9-2c8e-40cf-8b3d-ccf42b06b44e" />
+
 
 
 
