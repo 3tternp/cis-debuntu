@@ -1,4 +1,4 @@
-# cis-ubuntu
+# cis-debuntu
 
 This is the bash shell script which is used to check CIS-benchmark test for Ubuntu & 
 Debian based Linux distribution. 
