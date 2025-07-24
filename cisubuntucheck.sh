@@ -1,15 +1,42 @@
 #!/bin/bash
 
+# Function to prompt for user input and validate
+prompt_user_input() {
+    echo "Enter the operating system (Ubuntu or Debian):"
+    read -r os
+    os=$(echo "$os" | tr '[:upper:]' '[:lower:]')
+    while [[ "$os" != "ubuntu" && "$os" != "debian" ]]; do
+        echo "Invalid input. Please enter 'Ubuntu' or 'Debian':"
+        read -r os
+        os=$(echo "$os" | tr '[:upper:]' '[:lower:]')
+    done
+    OS="$os"
+
+    echo "Enter the profile (Server or Workstation):"
+    read -r profile
+    profile=$(echo "$profile" | tr '[:upper:]' '[:lower:]')
+    while [[ "$profile" != "server" && "$profile" != "workstation" ]]; do
+        echo "Invalid input. Please enter 'Server' or 'Workstation':"
+        read -r profile
+        profile=$(echo "$profile" | tr '[:upper:]' '[:lower:]')
+    done
+    PROFILE="$profile"
+
+    echo -e "\nThis script will scan the system for CIS benchmark compliance."
+    echo "It requires root privileges and may modify log files in the current directory."
+    echo "Do you consent to proceed? (yes/no)"
+    read -r consent
+    consent=$(echo "$consent" | tr '[:upper:]' '[:lower:]')
+    if [[ "$consent" != "yes" ]]; then
+        echo "Script execution aborted by user."
+        exit 1
+    fi
+}
+
 # Initialize counters
 declare -A counters=(
-    ["score_server1_total"]=0 ["score_server1_ok"]=0
-    ["score_server2_total"]=0 ["score_server2_ok"]=0
-    ["score_workstation1_total"]=0 ["score_workstation1_ok"]=0
-    ["score_workstation2_total"]=0 ["score_workstation2_ok"]=0
-    ["notscored_server1_total"]=0 ["notscored_server1_ok"]=0
-    ["notscored_server2_total"]=0 ["notscored_server2_ok"]=0
-    ["notscored_workstation1_total"]=0 ["notscored_workstation1_ok"]=0
-    ["notscored_workstation2_total"]=0 ["notscored_workstation2_ok"]=0
+    ["score_total"]=0 ["score_ok"]=0
+    ["notscored_total"]=0 ["notscored_ok"]=0
 )
 
 # Check if terminal supports colors
@@ -35,26 +62,81 @@ log_message() {
     echo -e "$message" | tee -a "$LOG_FILE"
 }
 
+# Function to determine risk rating based on reference and score
+get_risk_rating() {
+    local ref="$1" score="$2"
+    if [[ "$score" == "Yes" ]]; then
+        case "$ref" in
+            1.*) echo "High" ;;    # Filesystem and partitioning
+            4.*) echo "Medium" ;;  # Audit logging
+            5.*) echo "High" ;;    # Access control and SSH
+            *) echo "Medium" ;;
+        esac
+    else
+        echo "Low"  # Not scored tests are advisory
+    fi
+}
+
+# Function to determine fix type
+get_fix_type() {
+    local ref="$1" status="$2"
+    if [[ "$status" == "PASS" ]]; then
+        echo "N/A"
+    else
+        case "$ref" in
+            1.1.*) echo "Involved" ;;  # Partitioning changes
+            4.*) echo "Planned" ;;     # Audit configuration
+            5.*) echo "Quick" ;;       # SSH and user config
+            *) echo "Involved" ;;
+        esac
+    fi
+}
+
+# Function to determine remediation steps
+get_remediation() {
+    local ref="$1" status="$2"
+    if [[ "$status" == "PASS" ]]; then
+        echo "No remediation required"
+    else
+        case "$ref" in
+            1.1.1.*)
+                echo "Run: modprobe -r <filesystem> && echo 'install <filesystem> /bin/true' >> /etc/modprobe.d/CIS.conf"
+                ;;
+            1.1.[2-13]*)
+                echo "Create separate partition in /etc/fstab or set mount options (nodev, nosuid, noexec)"
+                ;;
+            4.*)
+                echo "Edit /etc/audit/auditd.conf or add audit rules to /etc/audit/rules.d/"
+                ;;
+            5.*)
+                echo "Edit /etc/ssh/sshd_config or /etc/login.defs and restart relevant services"
+                ;;
+            *)
+                echo "Review CIS benchmark documentation for specific remediation steps"
+                ;;
+        esac
+    fi
+}
+
 # Function to add to HTML results
 add_html_result() {
     local ref="$1" status="$2" msg="$3" profile="$4"
-    HTML_RESULTS+=("<tr><td>${ref}</td><td>${msg}</td><td class=\"${status,,}\">${status}</td><td>${profile}</td></tr>")
+    local risk_rating=$(get_risk_rating "$ref" "$score")
+    local fix_type=$(get_fix_type "$ref" "$status")
+    local remediation=$(get_remediation "$ref" "$status")
+    HTML_RESULTS+=("<tr><td>${ref}</td><td>${msg}</td><td>${risk_rating}</td><td class=\"${status,,}\">${status}</td><td>${fix_type}</td><td>${remediation}</td></tr>")
 }
 
 # Function to generate HTML report
 generate_html_report() {
     local hostname="$1"
     local timestamp="$2"
-    local total_scored=$((counters[score_server1_total] + counters[score_server2_total] - counters[score_server1_total]))
-    local total_notscored=$((counters[notscored_server1_total] + counters[notscored_server2_total] - counters[notscored_server1_total]))
-    local passed_scored=$((counters[score_server1_ok] + counters[score_server2_ok] - counters[score_server1_ok]))
-    local passed_notscored=$((counters[notscored_server1_ok] + counters[notscored_server2_ok] - counters[notscored_server1_ok]))
-    local score_server1_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${counters[score_server1_ok]}*100/${counters[score_server1_total]}}")
-    local score_server2_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${counters[score_server2_ok]}*100/${counters[score_server2_total]}}")
-    local score_workstation1_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${counters[score_workstation1_ok]}*100/${counters[score_workstation1_total]}}")
-    local score_workstation2_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${counters[score_workstation2_ok]}*100/${counters[score_workstation2_total]}}")
-    local overall_scored_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${passed_scored}*100/${total_scored}}")
-    local overall_notscored_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${passed_notscored}*100/${total_notscored}}")
+    local total_scored=${counters[score_total]}
+    local total_notscored=${counters[notscored_total]}
+    local passed_scored=${counters[score_ok]}
+    local passed_notscored=${counters[notscored_ok]}
+    local scored_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${passed_scored}*100/${total_scored}}")
+    local notscored_pass_rate=$(awk "BEGIN {printf \"%.1f\", ${passed_notscored}*100/${total_notscored}}")
 
     cat << EOF > "$HTML_OUTPUT"
 <!DOCTYPE html>
@@ -62,13 +144,14 @@ generate_html_report() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CIS Ubuntu Benchmark Results</title>
+    <title>CIS ${OS^} Benchmark Results</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: Arial, sans-serif; }
         .pass { color: green; }
         .fail { color: red; }
+        .skip { color: orange; }
         table { border-collapse: collapse; width: 100%; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -77,42 +160,29 @@ generate_html_report() {
 </head>
 <body class="bg-gray-100 p-6">
     <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-lg">
-        <h1 class="text-2xl font-bold mb-4">CIS Ubuntu Benchmark Check</h1>
+        <h1 class="text-2xl font-bold mb-4">CIS ${OS^} Benchmark Check</h1>
         <p><strong>Hostname:</strong> ${hostname}</p>
         <p><strong>Time:</strong> ${timestamp}</p>
+        <p><strong>Operating System:</strong> ${OS^}</p>
+        <p><strong>Profile:</strong> ${PROFILE^}</p>
 
         <h2 class="text-xl font-semibold mt-6 mb-2">Executive Summary</h2>
-        <p>The CIS Ubuntu Benchmark assessment evaluated ${total_scored} scored and ${total_notscored} not scored tests across Server and Workstation profiles. The overall pass rate for scored tests is ${overall_scored_pass_rate}%, indicating partial compliance with critical security controls. Not scored tests achieved a pass rate of ${overall_notscored_pass_rate}%, reflecting advisory recommendations.</p>
+        <p>The CIS ${OS^} Benchmark assessment evaluated ${total_scored} scored and ${total_notscored} not scored tests for the ${PROFILE^} profile. The overall pass rate for scored tests is ${scored_pass_rate}%, indicating partial compliance with critical security controls. Not scored tests achieved a pass rate of ${notscored_pass_rate}%, reflecting advisory recommendations.</p>
         <ul class="list-disc pl-5 mb-4">
-            <li><strong>Server1 (Scored):</strong> ${counters[score_server1_ok]}/${counters[score_server1_total]} (${score_server1_pass_rate}%) passed, indicating moderate compliance.</li>
-            <li><strong>Server2 (Scored):</strong> ${counters[score_server2_ok]}/${counters[score_server2_total]} (${score_server2_pass_rate}%) passed, highlighting significant non-compliance.</li>
-            <li><strong>Workstation1 (Scored):</strong> ${counters[score_workstation1_ok]}/${counters[score_workstation1_total]} (${score_workstation1_pass_rate}%) passed, similar to Server1.</li>
-            <li><strong>Workstation2 (Scored):</strong> ${counters[score_workstation2_ok]}/${counters[score_workstation2_total]} (${score_workstation2_pass_rate}%) passed, requiring urgent remediation.</li>
-            <li><strong>Not Scored Tests:</strong> Lower pass rates, particularly for Server2 (0%) and Workstation2 (20%), suggest gaps in best practices.</li>
+            <li><strong>Scored Tests:</strong> ${counters[score_ok]}/${counters[score_total]} (${scored_pass_rate}%) passed.</li>
+            <li><strong>Not Scored Tests:</strong> ${counters[notscored_ok]}/${counters[notscored_total]} (${notscored_pass_rate}%) passed.</li>
         </ul>
-        <p><strong>Recommendations:</strong> Prioritize remediation of failed scored tests, especially for Server2 and Workstation2, focusing on filesystem security (e.g., 1.1.1.1-1.1.1.8), partitioning (e.g., 1.1.6-1.1.13), and audit logging (e.g., 4.1.1.2-4.1.18). Review not scored test failures to align with security best practices.</p>
+        <p><strong>Recommendations:</strong> Prioritize remediation of failed scored tests, focusing on filesystem security (e.g., 1.1.1.1-1.1.1.8), partitioning (e.g., 1.1.6-1.1.13), and audit logging (e.g., 4.1.1.2-4.1.18). Review not scored test failures to align with security best practices.</p>
 
         <h2 class="text-xl font-semibold mt-6 mb-2">Summary</h2>
         <div class="grid grid-cols-2 gap-4 mb-6">
             <div>
-                <h3 class="text-lg font-medium">Scored (Server)</h3>
-                <p>Server 1: ${counters[score_server1_ok]} / ${counters[score_server1_total]}</p>
-                <p>Server 2: ${counters[score_server2_ok]} / ${counters[score_server2_total]}</p>
+                <h3 class="text-lg font-medium">Scored (${PROFILE^})</h3>
+                <p>${counters[score_ok]} / ${counters[score_total]}</p>
             </div>
             <div>
-                <h3 class="text-lg font-medium">Scored (Workstation)</h3>
-                <p>Workstation 1: ${counters[score_workstation1_ok]} / ${counters[score_workstation1_total]}</p>
-                <p>Workstation 2: ${counters[score_workstation2_ok]} / ${counters[score_workstation2_total]}</p>
-            </div>
-            <div>
-                <h3 class="text-lg font-medium">Not Scored (Server)</h3>
-                <p>Server 1: ${counters[notscored_server1_ok]} / ${counters[notscored_server1_total]}</p>
-                <p>Server 2: ${counters[notscored_server2_ok]} / ${counters[notscored_server2_total]}</p>
-            </div>
-            <div>
-                <h3 class="text-lg font-medium">Not Scored (Workstation)</h3>
-                <p>Workstation 1: ${counters[notscored_workstation1_ok]} / ${counters[notscored_workstation1_total]}</p>
-                <p>Workstation 2: ${counters[notscored_workstation2_ok]} / ${counters[notscored_workstation2_total]}</p>
+                <h3 class="text-lg font-medium">Not Scored (${PROFILE^})</h3>
+                <p>${counters[notscored_ok]} / ${counters[notscored_total]}</p>
             </div>
         </div>
 
@@ -123,10 +193,12 @@ generate_html_report() {
         <table class="w-full mb-6">
             <thead>
                 <tr>
-                    <th>Reference</th>
-                    <th>Description</th>
+                    <th>Finding ID</th>
+                    <th>Issue Name</th>
+                    <th>Risk-Rating</th>
                     <th>Status</th>
-                    <th>Profile</th>
+                    <th>Fix-Type</th>
+                    <th>Remediation</th>
                 </tr>
             </thead>
             <tbody>
@@ -140,18 +212,18 @@ generate_html_report() {
         new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['Server1 (Scored)', 'Server2 (Scored)', 'Workstation1 (Scored)', 'Workstation2 (Scored)', 'Server1 (Not Scored)', 'Server2 (Not Scored)', 'Workstation1 (Not Scored)', 'Workstation2 (Not Scored)'],
+                labels: ['Scored (${PROFILE^})', 'Not Scored (${PROFILE^})'],
                 datasets: [
                     {
                         label: 'Passed',
-                        data: [${counters[score_server1_ok]}, ${counters[score_server2_ok]}, ${counters[score_workstation1_ok]}, ${counters[score_workstation2_ok]}, ${counters[notscored_server1_ok]}, ${counters[notscored_server2_ok]}, ${counters[notscored_workstation1_ok]}, ${counters[notscored_workstation2_ok]}],
+                        data: [${counters[score_ok]}, ${counters[notscored_ok]}],
                         backgroundColor: 'rgba(75, 192, 192, 0.6)',
                         borderColor: 'rgba(75, 192, 192, 1)',
                         borderWidth: 1
                     },
                     {
                         label: 'Failed',
-                        data: [${counters[score_server1_total]}-${counters[score_server1_ok]}, ${counters[score_server2_total]}-${counters[score_server2_ok]}, ${counters[score_workstation1_total]}-${counters[score_workstation1_ok]}, ${counters[score_workstation2_total]}-${counters[score_workstation2_ok]}, ${counters[notscored_server1_total]}-${counters[notscored_server1_ok]}, ${counters[notscored_server2_total]}-${counters[notscored_server2_ok]}, ${counters[notscored_workstation1_total]}-${counters[notscored_workstation1_ok]}, ${counters[notscored_workstation2_total]}-${counters[notscored_workstation2_ok]}],
+                        data: [${counters[score_total]}-${counters[score_ok]}, ${counters[notscored_total]}-${counters[notscored_ok]}],
                         backgroundColor: 'rgba(255, 99, 132, 0.6)',
                         borderColor: 'rgba(255, 99, 132, 1)',
                         borderWidth: 1
@@ -183,17 +255,16 @@ test_wrapper() {
     local workstation="$5"
     local profile="${server}, ${workstation}"
 
+    # Skip test if it doesn't match the selected profile
+    if [[ "$PROFILE" == "server" && ! "$server" =~ Server[12] ]] || [[ "$PROFILE" == "workstation" && ! "$workstation" =~ Workstation[12] ]]; then
+        return
+    fi
+
     # Update counters for totals
     if [[ "$score" == "Yes" ]]; then
-        [[ "$server" == "Server1" ]] && ((counters[score_server1_total]++))
-        [[ "$server" == "Server1" || "$server" == "Server2" ]] && ((counters[score_server2_total]++))
-        [[ "$workstation" == "Workstation1" ]] && ((counters[score_workstation1_total]++))
-        [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[score_workstation2_total]++))
+        ((counters[score_total]++))
     else
-        [[ "$server" == "Server1" ]] && ((counters[notscored_server1_total]++))
-        [[ "$server" == "Server1" || "$server" == "Server2" ]] && ((counters[notscored_server2_total]++))
-        [[ "$workstation" == "Workstation1" ]] && ((counters[notscored_workstation1_total]++))
-        [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[notscored_workstation2_total]++))
+        ((counters[notscored_total]++))
     fi
 
     if [[ -f "./test/${ref}.sh" ]]; then
@@ -204,15 +275,9 @@ test_wrapper() {
             log_message "${GREEN}PASS${NC} - $ref - $msg"
             add_html_result "$ref" "PASS" "$msg" "$profile"
             if [[ "$score" == "Yes" ]]; then
-                [[ "$server" == "Server1" ]] && ((counters[score_server1_ok]++))
-                [[ "$server" == "Server1" || "$server" == "Server2" ]] && ((counters[score_server2_ok]++))
-                [[ "$workstation" == "Workstation1" ]] && ((counters[score_workstation1_ok]++))
-                [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[score_workstation2_ok]++))
+                ((counters[score_ok]++))
             else
-                [[ "$server" == "Server1" ]] && ((counters[notscored_server1_ok]++))
-                [[ "$server" == "Server1" || "$server" == "Server2" ]] && ((counters[notscored_server2_ok]++))
-                [[ "$workstation" == "Workstation1" ]] && ((counters[notscored_workstation1_ok]++))
-                [[ "$workstation" == "Workstation1" || "$workstation" == "Workstation2" ]] && ((counters[notscored_workstation2_ok]++))
+                ((counters[notscored_ok]++))
             fi
         fi
     else
@@ -227,9 +292,12 @@ if [[ "$(id -u)" -ne 0 ]]; then
     exit 1
 fi
 
+# Prompt for user input and consent
+prompt_user_input
+
 # Display banner
 log_message "=================================================="
-log_message "      CIS Ubuntu Benchmark Check"
+log_message "      CIS ${OS^} Benchmark Check"
 log_message "      Version 1.0"
 log_message "      Developed by Astra-X"
 log_message "=================================================="
@@ -238,9 +306,11 @@ log_message "=================================================="
 log_message ""
 log_message "Hostname: $(hostname)"
 log_message "Time: $(date)"
+log_message "Operating System: ${OS^}"
+log_message "Profile: ${PROFILE^}"
 log_message "================================================================================="
 
-# Define tests (same as previous)
+# Define tests (same as original)
 declare -a tests=(
     "1.1.1.1|Ensure mounting of cramfs filesystems is disabled (Scored)|Yes|Server1|Workstation1"
     "1.1.1.2|Ensure mounting of freevxfs filesystems is disabled (Scored)|Yes|Server1|Workstation1"
@@ -477,21 +547,11 @@ done
 log_message ""
 log_message "Results"
 log_message "===================================="
-log_message "Scored (Server)"
-log_message "Server 1 = ${counters[score_server1_ok]} / ${counters[score_server1_total]}"
-log_message "Server 2 = ${counters[score_server2_ok]} / ${counters[score_server2_total]}"
+log_message "Scored (${PROFILE^})"
+log_message "${counters[score_ok]} / ${counters[score_total]}"
 log_message ""
-log_message "Scored (Workstation)"
-log_message "Workstation 1 = ${counters[score_workstation1_ok]} / ${counters[score_workstation1_total]}"
-log_message "Workstation 2 = ${counters[score_workstation2_ok]} / ${counters[score_workstation2_total]}"
-log_message ""
-log_message "Not Scored (Server)"
-log_message "Server 1 = ${counters[notscored_server1_ok]} / ${counters[notscored_server1_total]}"
-log_message "Server 2 = ${counters[notscored_server2_ok]} / ${counters[notscored_server2_total]}"
-log_message ""
-log_message "Not Scored (Workstation)"
-log_message "Workstation 1 = ${counters[notscored_workstation1_ok]} / ${counters[notscored_workstation1_total]}"
-log_message "Workstation 2 = ${counters[notscored_workstation2_ok]} / ${counters[notscored_workstation2_total]}"
+log_message "Not Scored (${PROFILE^})"
+log_message "${counters[notscored_ok]} / ${counters[notscored_total]}"
 
 # Generate HTML report
 generate_html_report "$(hostname)" "$(date)"
