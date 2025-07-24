@@ -1,7 +1,7 @@
 # cis-debuntu
 
 This is the bash shell script which is used to check CIS-benchmark test for Ubuntu & 
-Debian based Linux distribution. 
+Debian based Linux distribution based on the CIS Benchmark for Ubuntu & Debian. 
 
 # Change Log 
 ## 🔐 User Input and Consent
