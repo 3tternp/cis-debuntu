@@ -5,8 +5,8 @@ Debian based Linux distribution.
 
 # usage 
 ```
-git clone https://github.com/3tternp/cis-ubuntu
-cd cis-ubuntu/
+git clone https://github.com/3tternp/cis-debuntu
+cd cis-debuntu/
 chmod +x cisdebuntucheck.sh
 ./cisdebuntucheck.sh
 ```
