@@ -20,5 +20,3 @@ chmod +x cisdebuntucheck.sh
 <img width="899" height="922" alt="image" src="https://github.com/user-attachments/assets/c411198a-f4b6-412c-b1a1-ad8910a1c525" />
 
 
-![image](https://github.com/user-attachments/assets/7161b3dd-cf30-402e-97b2-e955753b72c4)
-
