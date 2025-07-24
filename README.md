@@ -3,30 +3,100 @@
 This is the bash shell script which is used to check CIS-benchmark test for Ubuntu & 
 Debian based Linux distribution. 
 # Change Log 
-User Input and Consent:
-Added prompt_user_input function to collect OS (Ubuntu/Debian) and profile (Server/Workstation) inputs, with case-insensitive validation.
-Added consent prompt requiring "yes" to proceed; otherwise, the script exits.
-Stored inputs in OS and PROFILE variables for use in the script.
-Simplified Counters:
-Replaced multiple counters (e.g., score_server1_total, score_workstation2_ok) with single score_total, score_ok, notscored_total, and notscored_ok since only one profile is selected.
-Updated test_wrapper and generate_html_report to use these counters.
-Profile Filtering:
-Modified test_wrapper to skip tests that don’t match the selected profile:
-For "Server", only run tests where server is Server1 or Server2.
-For "Workstation", only run tests where workstation is Workstation1 or Workstation2.
-This ensures only relevant tests are executed based on user input.
-OS Integration:
-Updated the HTML report title and content to reflect the selected OS (${OS^} capitalizes the first letter).
-Assumed Ubuntu and Debian use the same test suite (as no Debian-specific tests were provided). In practice, Debian might require a different CIS benchmark, but this script uses the existing tests for both.
-HTML Report Adjustments:
-Updated the report to show only the selected profile’s results, removing Server1/Server2/Workstation1/Workstation2 breakdowns.
-Simplified the chart to show two bars: Scored and Not Scored for the chosen profile.
-Added OS and Profile to the report header for clarity.
-Kept the table structure with Finding ID, Issue Name, Risk-Rating, Status, Fix-Type, and Remediation.
-Preserved Core Functionality:
-Retained the test execution logic, logging, and remediation/risk/fix-type functions from the previous script.
-Kept the test array unchanged, as it’s assumed to apply to both Ubuntu and Debian for this purpose.
-Maintained the same artifact ID (f0023e8a-8afd-4778-aedd-42de4b63f010) as this is an update to the previous artifact.
+🔐 User Input and Consent
+Added prompt_user_input function to collect:
+
+Operating System (OS) input (Ubuntu or Debian) — case-insensitive validation.
+
+Profile selection input (Server or Workstation) — validated for correct role type.
+
+Consent Prompt Introduced:
+
+Before executing the audit, the script prompts the user: "Do you want to continue? (yes/no)"
+
+If the user does not type yes, the script exits safely.
+
+Inputs are stored in variables OS and PROFILE for use in logic and reporting.
+
+📊 Simplified Counters
+Removed the use of multiple scoped counters like score_server1_total, score_workstation2_ok, etc.
+
+Introduced unified counters:
+
+score_total, score_ok
+
+notscored_total, notscored_ok
+
+Used within test_wrapper and generate_html_report to summarize results consistently for the chosen profile only.
+
+🧠 Profile Filtering Logic
+Updated test_wrapper to run only relevant tests based on selected profile:
+
+For Server, executes only tests where server == Server1 or Server2
+
+For Workstation, executes only tests where workstation == Workstation1 or Workstation2
+
+This ensures that the user sees results tailored to their environment, avoiding unrelated noise.
+
+🖥️ OS Integration
+Introduced the OS variable from user input to reflect the operating system (Ubuntu/Debian).
+
+The HTML report’s title and body now reference ${OS^} (capitalized for clarity).
+
+Test suite is assumed common to both Ubuntu and Debian for now.
+
+Note: Debian-specific benchmarks may differ. The script currently uses a unified suite.
+
+📈 HTML Report Enhancements
+Report header now includes:
+
+Selected OS (Ubuntu or Debian)
+
+Selected Profile (Server or Workstation)
+
+Visual simplification:
+
+Removed column breakdowns for Server1, Server2, Workstation1, Workstation2.
+
+Chart simplified to reflect:
+
+Scored results
+
+Not Scored results
+
+Table structure preserved:
+
+Finding ID
+
+Description
+
+Risk-Rating
+
+Status (Pass/Fail/Skip)
+
+Fix-Type
+
+Remediation Guidance
+
+⚙️ Core Logic and Functionality Preserved
+Maintains:
+
+The existing test execution loop
+
+Logging via cis_audit.log
+
+Remediation, risk rating, and fix-type processing per test
+
+Test array untouched:
+
+Applies equally to both Ubuntu and Debian in current implementation
+
+Structured for easy future extension
+
+🆔 Artifact Reference
+Artifact ID: f0023e8a-8afd-4778-aedd-42de4b63f010
+
+This update enhances the usability and maintainability of the original script while keeping its fundamental structure.
 
 # usage 
 ```
