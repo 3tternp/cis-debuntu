@@ -1,4 +1,3 @@
-```bash
 #!/bin/bash
 
 # Ensure script is run as root
@@ -131,15 +130,3 @@ generate_html_report
 
 # Clean up
 rm "$RESULTS_FILE"
-```
-
-To use this script:
-1. Save it as `cis_debian_audit.sh`.
-2. Make it executable: `chmod +x cis_debian_audit.sh`.
-3. Run it as root: `sudo ./cis_debian_audit.sh`.
-4. The script requires `jq` for JSON processing; install it with `sudo apt install jq` on Debian.
-5. The HTML report will be saved as `cis_debian_report.html` in the current directory.
-
-The report includes a table with Finding ID, Issue Name, Status (Pass/Fail), Risk Rating (Critical/High/Medium/Low), Fix Type (Involved/Planned/Quick), and Remediation for each check. The script covers a small subset of CIS checks for brevity; a full implementation would require extensive logic for all 190+ checks in the CIS Debian Benchmark. For comprehensive auditing, use tools like CIS-CAT Pro or OpenSCAP, which support the full benchmark and detailed reporting.
-
-The script uses `jq` to manage results temporarily in JSON format before generating the HTML report, ensuring accurate data handling. Each check is modular, and you can extend it by adding more functions for additional CIS Benchmark controls, following the same structure. Risk ratings and fix types are assigned based on typical CIS guidelines, but you may need to adjust them for specific environments or versions of the benchmark.
