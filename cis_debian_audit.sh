@@ -6,11 +6,10 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Initialize results file
-RESULTS_FILE=$(mktemp)
-echo "[]" > "$RESULTS_FILE"
+# Initialize temporary file for HTML table rows
+TABLE_ROWS_FILE=$(mktemp)
 
-# Function to add result to JSON
+# Function to add result directly to HTML table rows
 add_result() {
     local finding_id="$1"
     local issue_name="$2"
@@ -18,7 +17,12 @@ add_result() {
     local risk_rating="$4"
     local fix_type="$5"
     local remediation="$6"
-    jq ". += [{\"finding_id\":\"$finding_id\",\"issue_name\":\"$issue_name\",\"status\":\"$status\",\"risk_rating\":\"$risk_rating\",\"fix_type\":\"$fix_type\",\"remediation\":\"$remediation\"}]" "$RESULTS_FILE" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "$RESULTS_FILE"
+    local status_class=$(echo "$status" | tr '[:upper:]' '[:lower:]')
+    local risk_class=$(echo "$risk_rating" | tr '[:upper:]' '[:lower:]')
+    # Escape special characters for HTML
+    issue_name=$(echo "$issue_name" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'\''/\&apos;/g')
+    remediation=$(echo "$remediation" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'\''/\&apos;/g')
+    echo "<tr class=\"$risk_class\"><td>$finding_id</td><td>$issue_name</td><td class=\"$status_class\">$status</td><td>$risk_rating</td><td>$fix_type</td><td>$remediation</td></tr>" >> "$TABLE_ROWS_FILE"
 }
 
 # Check 1: Ensure /tmp is configured as a separate partition
@@ -108,7 +112,7 @@ generate_html_report() {
         </tr>
 EOF
 
-    jq -r '.[] | "<tr class=\(.risk_rating | ascii_downcase)><td>\(.finding_id)</td><td>\(.issue_name)</td><td class=\(.status | ascii_downcase)>\(.status)</td><td>\(.risk_rating)</td><td>\(.fix_type)</td><td>\(.remediation)</td></tr>"' "$RESULTS_FILE" >> cis_debian_report.html
+    cat "$TABLE_ROWS_FILE" >> cis_debian_report.html
 
     cat << EOF >> cis_debian_report.html
     </table>
@@ -129,4 +133,4 @@ check_auditd_service
 generate_html_report
 
 # Clean up
-rm "$RESULTS_FILE"
+rm "$TABLE_ROWS_FILE"
